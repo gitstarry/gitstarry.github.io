@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <style type="text/css">
+        body {
+            background-color: #CCCCCC;
+            margin: 0;
+            padding: 0;
+        }
+
+        li,
+        a {
+            list-style: none;
+        }
+
+        ul {
+            padding: 0;
+        }
+
+        .wrap {
+            width: 80%;
+            margin: 0 auto;
+            top: 0;
+            border: 2px solid black;
+            background-color: #FFFFCC;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+        }
+
+        .main {
+            background-color: #FFFF00;
+            flex-grow:2;
+            text-align: center;
+        }
+
+        .right {
+            background-color: #0099CC;
+            flex-grow:1;
+            text-align: center;
+        }
+
+        .right input {
+            color: brown;
+            font-weight: 1000;
+            border-radius: 25%;
+            border: 0px;
+            background-color: #3366CC;
+            width: 100px;
+            height: 50px;
+            display: block;
+            margin: 20px auto;
+        }
+
+        .right input:hover {
+            background-color: #336699;
+            cursor: pointer;
+        }
+
+        .left {
+            width: 100px;
+            background-color: #FF9900;
+            flex-grow:1
+        }
+
+        canvas {
+            border: 2px solid saddlebrown;
+        }
+
+        .score-wrap ul {
+            margin: 0 auto;
+            text-align: center;
+            color: green;
+        }
+
+        .score-wrap ul li {
+            background-color: khaki;
+            margin-bottom: 5px;
+        }
+    </style>
+    <div class="wrap">
+        <div class="left">
+            <div>
+                <span>得分:</span>
+                <span id="score">0</span>
+            </div>
+            <div class="score-wrap">
+                <span>历史得分：</span>
+                <ul id="historyScore">
+                </ul>
+            </div>
+        </div>
+        <div class="main">
+            <canvas id="gameCanvas" width="300px" height="300px">
+                <h1>抱歉，你的浏览器不支持canvas</h1>
+            </canvas>
+        </div>
+        <div class="right">
+            <input type="button" onclick="main()" value="开始">
+            <input type="button" onclick="clearHistoryScore()" value="清除历史记录">
+        </div>
+    </div>
+    <script>
+        const GAME_SPEED = 200;
+        const CANVAS_BORDER_COLOUR = 'black';
+        const CANVAS_BACKGROUND_COLOUR = "white";
+        const SNAKE_COLOUR = 'lightgreen';
+        const SNAKE_BORDER_COLOUR = 'darkgreen';
+        const FOOD_COLOUR = 'red';
+        const FOOD_BORDER_COLOUR = 'darkred';
+        const DEFSNAKE = [
+            { x: 150, y: 150 },
+            { x: 140, y: 150 },
+            { x: 130, y: 150 },
+            { x: 120, y: 150 },
+            { x: 110, y: 150 }
+        ];
+
+        let snake = [
+            { x: 150, y: 150 },
+            { x: 140, y: 150 },
+            { x: 130, y: 150 },
+            { x: 120, y: 150 },
+            { x: 110, y: 150 }
+        ];
+
+        // 蛇头
+        const headOfSnake = new Image();
+        const strawberry = new Image()
+        headOfSnake.src = 'snake.png';
+        strawberry.src = 'strawberry.png';
+
+        // 分数
+        let score = 0;
+        // 蛇移动方向时变为true
+        let changingDirection = false;
+        // 食物坐标
+        let foodX;
+        let foodY;
+        // 水平速度
+        let dx = 10;
+        // 垂直速度
+        let dy = 0;
+
+        const gameCanvas = document.getElementById("gameCanvas");
+        const ctx = gameCanvas.getContext('2d');
+        if (gameCanvas.getContext) {
+
+        }
+        //全局监听键盘事件
+        document.addEventListener("keydown", changeDirection);
+        // getContext获得渲染上下文和他的绘画功能
+
+        let isGameOver = false;
+
+        createFood(); // 游戏开始前先生成一次食物
+
+        function main() {
+            didGameEnd();
+            if (isGameOver) {
+                clearCanvas();
+                saveScore();
+                initialize();
+                return
+            };
+            // 一步一步移动
+            setTimeout(function onTick() {
+                changingDirection = false;
+                clearCanvas(); // 清除画布
+                drawFood();
+                advanceSnake();// 移动蛇
+                drawSnake(); // 移动之后还要再显示显示蛇
+                main();
+            }, GAME_SPEED)
+        };
+
+        // 游戏结束后初始化
+        function initialize() {
+            // JSON 对象实现深拷贝
+            snake = JSON.parse(JSON.stringify(DEFSNAKE));
+            isGameOver = false;
+            score = 0;
+            dx = 10;
+            dy = 0;
+        }
+        let scores = document.getElementById("historyScore");
+        showHistoryScore();
+        // 显示历史分数
+        function showHistoryScore() {
+            let len = localStorage.length;
+            for (let i = 1; i <= len; i++) {
+                let score = localStorage.getItem(i);
+                let newLi = document.createElement("li");
+                newLi.innerHTML = score;
+                scores.appendChild(newLi);
+            }
+        }
+        // 清除历史分数
+        function clearHistoryScore() {
+            if (confirm("删了就没了哦")) {
+                localStorage.clear();
+                // 依次删除DOM  
+                //scores.innerHTML = ''
+                while (scores.firstChild) {
+                    scores.removeChild(scores.firstChild)
+                }
+            }
+        }
+        // 保存分数到历史记录
+        function saveScore() {
+            alert("得分：" + score)
+            let key = localStorage.length + 1;
+            localStorage.setItem(key, score);
+            let scores = document.getElementById("historyScore");
+            let newLi = document.createElement("li");
+            newLi.innerHTML = score;
+            scores.appendChild(newLi);
+        }
+
+        function drawSnakePart(snakePart) {
+            ctx.fillStyle = 'lightgreen'; ctx.strokestyle = 'darkgreen';
+            ctx.fillRect(snakePart.x, snakePart.y, 10, 10);
+            ctx.strokeRect(snakePart.x, snakePart.y, 10, 10);
+        }
+
+        // 显示蛇
+        function drawSnake() {
+            snake.forEach(drawSnakePart);
+            ctx.drawImage(headOfSnake, snake[0].x, snake[0].y, 10, 10)
+        }
+        // 移动蛇
+        function advanceSnake() {
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+            const didEatFood = snake[0].x === foodX && snake[0].y === foodY;
+            if (didEatFood) {
+                score += 10;
+                document.getElementById('score').innerHTML = score;
+                createFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = CANVAS_BACKGROUND_COLOUR;
+            ctx.strokestyle = CANVAS_BORDER_COLOUR;
+            ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+            ctx.strokeRect(0, 0, gameCanvas.width, gameCanvas.height);
+        }
+        // 随着键盘移动
+        function changeDirection(event) {
+            // 上下左右的键码值
+            const LEFT_KEY = 37;
+            const RIGHT_KEY = 39;
+            const UP_KEY = 38;
+            const DOWN_KEY = 40;
+            // 防止蛇倒转
+            // 示例场景:
+            // 蛇正在向右移动。用户按下按钮，立即离开
+            // 蛇会立刻改变方向而不先往下走一步
+            if (changingDirection) return;
+            changingDirection = true;
+
+            const keyPressed = event.keyCode;
+
+            const goingUp = dy === -10;
+            const goingDown = dy === 10;
+            const goingRight = dx === 10;
+            const goingLeft = dx === -10;
+
+            if (keyPressed === LEFT_KEY && !goingRight) {
+                dx = -10;
+                dy = 0;
+            }
+            if (keyPressed === UP_KEY && !goingDown) {
+                dx = 0;
+                dy = -10;
+            }
+            if (keyPressed === RIGHT_KEY && !goingLeft) {
+                dx = 10;
+                dy = 0;
+            }
+            if (keyPressed === DOWN_KEY && !goingUp) {
+                dx = 0;
+                dy = 10;
+            }
+        }
+
+        // 生成食物
+        function randomTen(min, max) {
+            // Math.round() 函数返回一个数字四舍五入后最接近的整数。
+            return Math.round((Math.random() * (max - min) + min) / 10) * 10;
+        }
+
+        function createFood() {
+            foodX = randomTen(0, gameCanvas.width - 10);
+            foodY = randomTen(0, gameCanvas.height - 10);
+
+            snake.forEach(function isFoodOnSnake(part) {
+                const foodIsoNsnake = part.x == foodX && part.y == foodY;
+                if (foodIsoNsnake) createFood();
+            });
+        };
+        // 画出食物
+        function drawFood() {
+            // ctx.fillStyle = FOOD_COLOUR;
+            // ctx.strokestyle = FOOD_BORDER_COLOUR;
+            // console.log(foodX + "," + foodY)
+            // ctx.fillRect(foodX, foodY, 10, 10);
+            // ctx.strokeRect(foodX, foodY, 10, 10);
+            ctx.drawImage(strawberry, foodX, foodY, 10, 10)
+        }
+
+        // 判断游戏是否结束
+        function didGameEnd() {
+            for (let i = 4; i < snake.length; i++) {
+                if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) {
+                    isGameOver = true;
+                    return
+                }
+            }
+
+            const hitLeftWall = snake[0].x < 0;
+            const hitRightWall = snake[0].x > gameCanvas.width - 10;
+            const hitToptWall = snake[0].y < 0;
+            const hitBottomWall = snake[0].y > gameCanvas.height - 10;
+
+            isGameOver = hitLeftWall || hitRightWall || hitToptWall || hitBottomWall
+        }
+    </script>
+</body>
+
+</html>
